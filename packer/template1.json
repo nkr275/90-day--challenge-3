@@ -1,0 +1,51 @@
+{
+  "variables": {
+      "aws_access_key": "",
+      "aws_secret_key": "",
+      "source_image_id": "ami-003634241a8",
+      "image_region": "us-west-2"
+
+  },
+  "builders": [
+      {
+          "type": "amazon-ebs",
+          "ami_name": "tomcatfrompacker",
+          "vpc_id": "vpc-0f27d08d0f",
+          "subnet_id": "subnet-0c0f36f12f",
+          "ami_description": "tomcat from packer",
+          "associate_public_ip_address": "true",
+          "access_key": "{{user `aws_access_key`}}",
+          "secret_key": "{{user `aws_secret_key`}}",
+          "region": "{{user `image_region`}}",
+          "instance_type": "t2.micro",
+          "source_ami": "{{user `source_image_id`}}",
+          "ssh_username": "ubuntu"
+
+  }],
+
+  "provisioners": [
+      
+      {
+        "type": "file",
+        "source": "./tomcat8.j2",
+        "destination": "./tomcat8.j2"
+      },
+      {
+        "type": "file",
+        "source": "./tomcat-users.xml.j2",
+        "destination": "./tomcat-users.xml.j2"
+      },
+      {
+        "type": "shell",
+        "script": "scripts/ansible.sh"
+      },
+      {
+      "type": "ansible-local",
+      "playbook_file": "./deployment.yaml"          
+      },
+      {
+        "type": "shell",
+        "script": "scripts/cleanup.sh"
+      }
+  ]
+}

@@ -1,0 +1,90 @@
+---
+- hosts: all 
+  become: yes
+  vars :
+    xmx_size : 512
+    perm_size: 256
+    user_name: devops
+    user_password: devops
+    role_manager: manager
+    role_admin : admin
+    tomcat_packages:
+      - openjdk-8-jdk
+      - tomcat8
+      - curl
+      - unzip
+      - mysql-client
+  tasks: 
+    - name: installing tomcat8 
+      apt :
+        name : tomcat8 
+        state : present
+        update_cache: yes
+    - name: installing packages
+      apt :
+        name : "{{ item }}"
+        state : present
+      loop: "{{ tomcat_packages }}"
+    - name: make quick changes to java options 
+      template :
+        src : /home/ubuntu/tomcat8.j2 
+        dest : /etc/default/tomcat8
+      notify: 
+        - restart tomcat
+    - name: we must add a login to our Tomcat server 
+      template :
+        src : /home/ubuntu/tomcat-users.xml.j2
+        dest : /etc/tomcat8/tomcat-users.xml
+      notify: 
+        - restart tomcat    
+    - name: Download the source to temp folder
+      get_url:
+        dest: /var/lib/tomcat8/webapps
+        url: "https://sourceforge.net/projects/openmrs/files/releases/OpenMRS_Platform_2.0.5/openmrs.war/download"
+      tags:
+        - openmrs war file    
+    - name: Creates directory
+      file:
+        path: /usr/share/tomcat8/.OpenMRS
+        state: directory
+    - name: Creates directory
+      file:
+        path: /usr/share/tomcat8/.OpenMRS/modules
+        state: directory
+    - name: Download the source to temp folder
+      get_url:
+        dest: /usr/share/tomcat8/.OpenMRS/modules
+        url: "https://sourceforge.net/projects/openmrs/files/releases/OpenMRS_Reference_Application_2.6.1/referenceapplication-modules-2.6.1.zip/download"
+      tags:
+        - openmrs ref 
+    - name: Extract zip file 
+      unarchive:
+        src: /usr/share/tomcat8/.OpenMRS/modules/referenceapplication-modules-2.6.1.zip
+        dest: /usr/share/tomcat8/.OpenMRS/modules
+    - name: This command will change the working directory to somedir/.
+      shell:
+        cmd: sudo mv referenceapplication-package-2.6.1/*.omod /usr/share/tomcat8/.OpenMRS/modules/
+        chdir: /usr/share/tomcat8/.OpenMRS/modules
+    - name: chown to username you login and chmod as required
+      file:
+        path: /usr/share/tomcat8
+        owner: tomcat8
+        group: tomcat8
+        mode: 0144
+      notify: 
+        - restart tomcat
+    - name: chown to username you login and chmod as required
+      file:
+        path: /var/lib/tomcat8
+        owner: tomcat8
+        group: tomcat8
+        mode: 0144
+      notify: 
+        - restart tomcat    
+  handlers:
+    - name : restart tomcat
+      service:
+        name: tomcat8
+        enabled: yes
+        state: restarted
+  
